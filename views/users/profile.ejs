@@ -1,0 +1,129 @@
+<% layout("/layouts/boilerplate") %>
+
+<!-- CSS Styles -->
+<style>
+  /* Profile Header */
+  h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-top: 20px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  /* Profile Details Section */
+  .profile-details {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+
+  .profile-details p {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 10px;
+  }
+
+  .profile-details strong {
+    color: #000;
+  }
+
+  /* Listings Section */
+  .listing-link {
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.3s ease;
+  }
+
+  .listing-link:hover {
+    transform: scale(1.05);
+  }
+
+  .listing-card {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+
+  .listing-card img {
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    object-fit: cover;
+  }
+
+  .card-body {
+    background-color: #fff;
+    padding: 15px;
+  }
+
+  .card-text {
+    font-size: 1.1rem;
+    color: #333;
+  }
+
+  .price-info {
+    font-weight: bold;
+    color: #007bff;
+  }
+
+  /* Back to Listings Button */
+  .back-to-listings {
+    display: inline-block;
+    margin-top: 30px;
+    font-size: 1rem;
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s ease;
+  }
+
+  .back-to-listings:hover {
+    color: #0056b3;
+  }
+</style>
+
+<!-- Profile Content -->
+<h1>Namaste <%= user.username %></h1>
+
+<div class="container mt-4">
+  <div class="profile-details">
+    <h2>Profile Details</h2>
+    <p><strong>Name:</strong> <%= user.username %></p>
+    <p><strong>Email:</strong> <%= user.email %></p>
+    <p><strong>Joined:</strong> <%= user.createdAt.toDateString() %></p>
+  </div>
+
+  <h2>Your Listings</h2>
+  <div class="row row-cols-sm-1 row-cols-md-2 row-cols-lg-3 mt-3">
+    <% if (user.listings.length > 0) { %>
+      <% for (listing of user.listings) { %>
+        <a href="/listings/<%= listing._id %>" class="listing-link">
+          <div class="card listing-card">
+            <img
+              src="<%= listing.image.url %>"
+              class="card-img-top"
+              alt="listing"
+              style="height: 20rem"
+            />
+            <div class="card-body">
+              <p class="card-text">
+                <b><%= listing.title %></b><br />
+                <span class="price-info" data-base-price="<%= listing.price %>">
+                  &#8377; <%= listing.price.toLocaleString("en-IN") %> /quintal
+                </span>
+              </p>
+            </div>
+          </div>
+        </a>
+      <% } %>
+    <% } else { %>
+      <p>You have not added any crops!!</p>
+    <% } %>
+  </div>
+
+  <a href="/listings" class="back-to-listings">Back to Listings</a>
+</div>
