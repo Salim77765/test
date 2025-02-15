@@ -20,7 +20,6 @@ const fs = require('fs');
 const listingRouter = require("./routes/listing.js");
 const reviewRouter = require("./routes/review.js");
 const userRouter = require("./routes/user.js");
-const { url } = require("inspector");
 
 const dbUrl = process.env.ATLASDB_URL;
 
@@ -31,19 +30,22 @@ if (!fs.existsSync(uploadsDir)) {
     console.log('Created uploads directory:', uploadsDir);
 }
 
-main()
-    .then(() => {
-    console.log("connected to DB");
-    })
-    .catch((err) => {
-        console.log(err);
-        console.log("Database Not Connected!!");
-        
-    })
-
-async function main() {
-    await mongoose.connect(dbUrl);
+// Database connection function
+async function connectDB() {
+    try {
+        await mongoose.connect(dbUrl, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log("Connected to DB");
+    } catch (err) {
+        console.error("Database Connection Error:", err);
+        throw err;
+    }
 }
+
+// Attempt to connect to DB during initialization
+connectDB().catch(console.error);
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -64,24 +66,21 @@ store.on("error" , (err) => {
     console.log("ERROR in MONGO SESSION STORE", err);
 });
 
-const sessionOptions = {
+const sessionConfig = {
     store,
-    secret: process.env.SECRET||"FM3t2Ti87HEoydb0bomz5d-uuzM",
+    name: 'session',
+    secret: process.env.SECRET,
     resave: false,
     saveUninitialized: true,
     cookie: {
-        expires: Date.now() + 7 *24 * 60 * 60 * 1000,
-        maxAge: 7 *24 * 60 * 60 * 1000,
+        httpOnly: true,
+        // secure: true,
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+        maxAge: 1000 * 60 * 60 * 24 * 7
     }
 };
 
-// app.get("/", (req, res) => {
-//     res.send("Hi, I am root");
-// })
-
-
-
-app.use(session(sessionOptions));
+app.use(session(sessionConfig));
 app.use(flash());
 
 app.use(passport.initialize());
@@ -92,32 +91,57 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 app.use((req, res, next) => {
-    res.locals.success = req.flash("success");
-    res.locals.error = req.flash("error");
+    res.locals.success = req.flash('success');
+    res.locals.error = req.flash('error');
     res.locals.currUser = req.user;
     next();
-})
+});
 
-app.use("/listings", listingRouter);
-app.use("/listings/:id/reviews", reviewRouter);
-app.use("/", userRouter);
+// Routes
+app.use('/listings', listingRouter);
+app.use('/listings/:id/reviews', reviewRouter);
+app.use('/', userRouter);
 
+// 404 handler
+app.all("*", (req, res, next) => {
+    next(new ExpressError("Page Not Found", 404));
+});
 
-app.all("*", (req,res,next) => {
-    next(new ExpressError(404, "Page Not Found"));
-})
-
+// Error handler
 app.use((err, req, res, next) => {
-    let {statusCode=500, message="Something went wrong!"} = err;
-    res.status(statusCode).render("error.ejs", {message});
-    console.log(err.stack);
-    
+    const { statusCode = 500 } = err;
+    if (!err.message) err.message = 'Oh No, Something Went Wrong!';
+    res.status(statusCode).render('error', { err });
 });
 
-app.listen(8080, () => {
-    console.log("server is listening to port 8080");
-    const deployURL = "http://localhost:8080";
-    console.log(`App is live at ${deployURL}`);
+// For serverless deployment
+module.exports = async (req, res) => {
+  try {
+    // Ensure database connection
+    await connectDB();
+
+    // Basic routing logic
+    const path = req.url;
     
+    if (path.startsWith('/listings')) {
+      return listingRouter(req, res);
+    }
     
-});
+    if (path.startsWith('/reviews')) {
+      return reviewRouter(req, res);
+    }
+    
+    if (path.startsWith('/user')) {
+      return userRouter(req, res);
+    }
+
+    // Default response
+    res.status(404).json({ message: 'Not Found' });
+  } catch (error) {
+    console.error('Serverless Function Error:', error);
+    res.status(500).json({ 
+      message: 'Internal Server Error', 
+      error: error.message 
+    });
+  }
+};
