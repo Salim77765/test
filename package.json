@@ -1,6 +1,6 @@
 {
   "engines": {
-    "node": "21.x"
+    "node": "22.x"
   },
   "name": "kisaanseva",
   "version": "1.0.0",
