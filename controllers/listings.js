@@ -2,6 +2,9 @@ const Listing = require("../models/listing");
 const User = require("../models/user");
 const mbxGeocoding = require("@mapbox/mapbox-sdk/services/geocoding");
 const fetch = require("node-fetch");
+const path = require('path');
+const fs = require('fs');
+
 const mapToken = process.env.MAP_TOKEN;
 console.log(mapToken);
 const geocodingClient = mbxGeocoding({ accessToken: mapToken });
@@ -38,30 +41,61 @@ module.exports.showListing = async (req, res) => {
 
 
 module.exports.createListing = async (req, res, next) => {
-  let response = await geocodingClient
-    .forwardGeocode({
-      query: req.body.listing.location,
-      limit: 1,
-    })
-    .send();
+  try {
+    // Log file details for debugging
+    console.log('File received:', req.file);
+    console.log('Request body:', req.body);
 
-    console.log(response.body.features[0].geometry);
+    // Verify uploads directory exists
+    const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      console.error('Uploads directory does not exist:', uploadsDir);
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    let response = await geocodingClient
+      .forwardGeocode({
+        query: req.body.listing.location,
+        limit: 1,
+      })
+      .send();
+
+    const newListing = new Listing(req.body.listing);
+    newListing.owner = req.user._id;
     
+    if (req.file) {
+      // More robust file path handling
+      const relativePath = path.relative(process.cwd(), req.file.path);
+      
+      if (!fs.existsSync(req.file.path)) {
+        throw new Error(`File does not exist: ${req.file.path}`);
+      }
 
-  let url = req.file.path;
-  let filename = req.file.filename;
-  const newListing = new Listing(req.body.listing);
-  newListing.owner = req.user._id;
-  console.log(newListing.owner);
-  
-  newListing.image = { url, filename };
+      newListing.image = { 
+        url: `/uploads/${req.file.filename}`, 
+        filename: req.file.filename 
+      };
+    } else {
+      req.flash('error', 'Image is required');
+      return res.redirect('/listings/new');
+    }
 
-  newListing.geometry = response.body.features[0].geometry;
+    newListing.geometry = response.body.features[0].geometry;
 
-  let savedListing = await newListing.save();
-  console.log(savedListing);
-  req.flash("success", "New Listing Created!");
-  res.redirect("/listings");
+    let savedListing = await newListing.save();
+    req.flash("success", "New Listing Created!");
+    res.redirect("/listings");
+  } catch (err) {
+    console.error('Listing creation error:', err);
+    console.error('Error details:', {
+      message: err.message,
+      stack: err.stack,
+      fileName: err.fileName,
+      lineNumber: err.lineNumber
+    });
+    req.flash('error', `Something went wrong: ${err.message}`);
+    res.redirect('/listings/new');
+  }
 };
 
 module.exports.renderEditForm = async (req, res) => {

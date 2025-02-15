@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 const initdata = require("./data.js");
 const Listing = require("../models/listing.js");
 
-const DB_URL = "mongodb://127.0.0.1:27017/farmer";
+const DB_URL = process.env.ATLASDB_URL
 // const DB_URL = process.env.ATLASDB_URL||'mongodb+srv://svedansh0302:sFQd43eux9yd6bOx@cluster0.komsr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 main()

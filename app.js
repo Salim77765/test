@@ -15,14 +15,21 @@ const flash = require("connect-flash");
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
 const User = require("./models/user.js");
+const fs = require('fs');
 
 const listingRouter = require("./routes/listing.js");
 const reviewRouter = require("./routes/review.js");
 const userRouter = require("./routes/user.js");
-const payroute = require("./routes/payment.js");
 const { url } = require("inspector");
 
 const dbUrl = process.env.ATLASDB_URL;
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('Created uploads directory:', uploadsDir);
+}
 
 main()
     .then(() => {
@@ -53,7 +60,7 @@ const store = MongoStore.create({
     touchAfter: 24 * 3600,
 });
 
-store.on("error" , () => {
+store.on("error" , (err) => {
     console.log("ERROR in MONGO SESSION STORE", err);
 });
 
@@ -94,8 +101,6 @@ app.use((req, res, next) => {
 app.use("/listings", listingRouter);
 app.use("/listings/:id/reviews", reviewRouter);
 app.use("/", userRouter);
-app.use("/payment", payroute);
-// app.use("/payment",payroute);
 
 
 app.all("*", (req,res,next) => {
